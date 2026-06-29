@@ -9,7 +9,9 @@
 
 const express = require("express")
 const cors = require("cors")
+const Note = require("./models/note")
 const app = express()
+require('dotenv').config()
 
 app.use(cors())
 app.use(express.json())
@@ -47,8 +49,10 @@ app.get('/', (req, res) => {
     res.send("<h1>Hello World</h1>")
 })
 
-app.get('/api/notes', (req, res) => {
-    res.json(notes)
+app.get('/api/notes', (request, response) => {
+  Note.find({}).then(notes => {
+    response.json(notes)
+  })
 })
 
 app.get('/api/notes/:id', (req, res) => {
