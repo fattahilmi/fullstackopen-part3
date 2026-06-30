@@ -42,6 +42,17 @@ let notes = [
     },
 ]
 
+const errorHandler = (error, request, response, next) => {
+  console.error(error.message)
+
+  if (error.name === 'CastError') {
+    return response.status(400).send({ error: 'malformatted id' })
+
+  } else if (error.name === 'ValidationError') {
+    return response.status(400).json({ error: error.message })
+  }
+  next(error)
+}
 // console.log(...notes)
 
 // route event handler function
@@ -55,56 +66,85 @@ app.get('/api/notes', (request, response) => {
   })
 })
 
-app.get('/api/notes/:id', (req, res) => {
+app.get('/api/notes/:id', (req, res, next) => {
     const id = req.params.id
-    console.log(id)
-    const note = notes.find(note => note.id === id)
-    if (note) {
-        res.json(note)
-    } else {
-        // end is method for responding without sending any data
-        res.status(400).json({
-            messages: "id is not found!",
+    // console.log(id)
+    Note.findById(id)
+        .then(note => {
+            if (!note) {
+                return res.status(404).json({ message: "Note not found" })
+            }
+            res.json(note)
         })
-    }
+        .catch(err => next(err))
+            // if (err.name === 'CastError') {
+            //     return res.status(404).json({ message: "Invalid ID format" })
+            // }
+            // res.status(500).json({ message: "An error occurred", error: err.message });
+            // res.status(400).send({ error: 'malformatted id' })
 })
 
-const generatedId = () => {
-    const maxId = notes.length > 0 ? Math.max(...notes.map(n => Number(n.id))) : 0
-    return String(maxId + 1)
-}
+// const generatedId = () => {
+//     const maxId = notes.length > 0 ? Math.max(...notes.map(n => Number(n.id))) : 0
+//     return String(maxId + 1)
+// }
 
-app.post('/api/notes', (req, res) => {
+app.post('/api/notes', (req, res, next) => {
     const body = req.body
     
-    if (!body.content) {
-        return res.status(400).json({
-            error: 'content mising'
-        })
-    }
+    // if (!body.content) {
+    //     return res.status(400).json({
+    //         error: 'content mising'
+    //     })
+    // }
 
-    const newNote = {
-        id: generatedId(),
+    const note = new Note({
+        // id: generatedId(),
         content: body.content,
         important: body.important || false
-    }
-    notes = notes.concat(newNote)
-    res.status(201).json(newNote)
+    })
+    // notes = notes.concat(newNote)
+    // res.status(201).json(newNote)
+    note.save()
+        .then(savedNotes => {
+            res.json(savedNotes)
+        })
+        .catch(error => next(error))
 })
 
-app.delete('/api/notes/:id', (req, res) => {
+app.delete('/api/notes/:id', (req, res, next) => {
     const id = req.params.id
-    const note = notes.find(note => note.id === id)
-    if (note) {
-        notes = notes.filter(note => note.id !== id)
-        // console.log(notes)
-        res.status(204).end()
-    } else {
-        res.status(400).json({
-            messages: "id is not found!",
+    Note.findByIdAndDelete(id)
+        .then(note => {
+            if (!note) {
+                return res.status(400).json({ message: "note not found!" })
+            }
+            res.status(204).end()
         })
-    }
+        .catch(err => next(err))
 })
+
+app.put('/api/notes/:id', (request, response, next) => {
+  const { content, important } = request.body
+
+  Note.findById(request.params.id)
+    .then(note => {
+      if (!note) {
+        return response.status(404).end()
+      }
+
+      note.content = content
+      note.important = important
+
+      return note.save().then((updatedNote) => {
+        response.json(updatedNote)
+      })
+    })
+    .catch(error => next(error))
+})
+
+// error middleware should place after the routes
+app.use(errorHandler)
 
 const PORT = process.env.PORT || 3001
 app.listen(PORT, () => {

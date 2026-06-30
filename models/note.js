@@ -6,7 +6,8 @@ mongoose.set('strictQuery', false)
 const url = process.env.MONGODB_URI
 
 console.log('connecting to', url)
-mongoose.connect(url, { family: 4 })
+mongoose
+    .connect(url, { family: 4 })
     .then(() => {
         console.log('connected to MongoDB')
     })
@@ -14,12 +15,17 @@ mongoose.connect(url, { family: 4 })
         console.log('error connecting to MongoDB:', error.messages)
     })
 
+// add validation in mongoose custom validator function
 const noteSchema = new mongoose.Schema({
-  content: String,
+  content: {
+    type: String,
+    minLength: 5,
+    required: true
+  },
   important: Boolean,
 })
 
-// dont return __v and _id attribute
+// do not return __v and _id attribute
 noteSchema.set('toJSON', {
     transform: (document, returnedObject) => {
         returnedObject.id = returnedObject._id.toString()
